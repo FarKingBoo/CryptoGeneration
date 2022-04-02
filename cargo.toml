@@ -1,0 +1,30 @@
+impl Service for CurrencyService {
+    fn service_name(&self) -> &'static str { "cryptocurrency" }
+
+    fn service_id(&self) -> u16 { SERVICE_ID }
+
+    fn tx_from_raw(&self, raw: RawTransaction)
+        -> Result<Box<Transaction>, encoding::Error> {
+
+        let trans: Box<Transaction> = match raw.message_type() {
+            TX_TRANSFER_ID => Box::new(TxTransfer::from_raw(raw)?),
+            TX_CREATE_WALLET_ID => Box::new(TxCreateWallet::from_raw(raw)?),
+            _ => {
+                return Err(encoding::Error::IncorrectMessageType {
+                    message_type: raw.message_type()
+                });
+            },
+        };
+        Ok(trans)
+    }
+
+    fn public_api_handler(&self, ctx: &ApiContext) -> Option<Box<Handler>> {
+        let mut router = Router::new();
+        let api = CryptocurrencyApi {
+            channel: ctx.node_channel().clone(),
+            blockchain: ctx.blockchain().clone(),
+        };
+        api.wire(&mut router);
+        Some(Box::new(router))
+    }
+}
